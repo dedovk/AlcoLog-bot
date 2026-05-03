@@ -24,7 +24,7 @@ async def start_handler(message: Message, locale: TranslatorRunner):
 
     await message.answer(
         f"{text}\n\n{menu_text}",
-        reply_markup=get_start_keyboard()
+        reply_markup=get_start_keyboard(locale)
     )
 
 
@@ -33,7 +33,7 @@ async def add_record_start(message: Message, state: FSMContext, locale: Translat
     """Start the AddRecord FSM flow"""
     text = locale.get("add-drink-prompt")
 
-    await message.answer(text, reply_markup=get_skip_confirm_keyboard())
+    await message.answer(text, reply_markup=get_skip_confirm_keyboard(locale))
     await state.set_state(AddRecordSG.waiting_for_drink)
 
 
@@ -50,7 +50,7 @@ async def process_drink_name(message: Message, state: FSMContext, locale: Transl
     await state.update_data(drink_name=drink_name)
 
     text = locale.get("add-amount-prompt")
-    await message.answer(text, reply_markup=get_skip_confirm_keyboard())
+    await message.answer(text, reply_markup=get_skip_confirm_keyboard(locale))
     await state.set_state(AddRecordSG.waiting_for_amount)
 
 
@@ -69,11 +69,11 @@ async def process_amount(message: Message, state: FSMContext, locale: Translator
         await message.answer(error_text)
         return
 
-    await state.update_data(amount=amount, amount_unit="ml")
+    await state.update_data(amount=amount)
 
-    text = locale.get("add-price-prompt")
-    await message.answer(text, reply_markup=get_skip_confirm_keyboard())
-    await state.set_state(AddRecordSG.waiting_for_price)
+    text = locale.get("select-unit-prompt")
+    await message.answer(text, reply_markup=get_amount_units_keyboard(locale))
+    await state.set_state(AddRecordSG.waiting_for_units)
 
 
 @router.message(AddRecordSG.waiting_for_price)
@@ -95,7 +95,7 @@ async def process_price(message: Message, state: FSMContext, locale: TranslatorR
     await state.update_data(price=price)
 
     text = locale.get("add-note-prompt")
-    await message.answer(text, reply_markup=get_skip_confirm_keyboard())
+    await message.answer(text, reply_markup=get_skip_confirm_keyboard(locale))
     await state.set_state(AddRecordSG.waiting_for_note)
 
 
@@ -126,15 +126,18 @@ async def process_note(message: Message, state: FSMContext, locale: TranslatorRu
         session.add(record)
         await session.commit()
 
-        # Prepare success message
-        price_text = f"Ціна: {data.get('price')} грн." if data.get(
+        # Build complete success message with all info
+        price_info = f"\n💰 {locale.get('record-price', price=data.get('price'))}" if data.get(
             'price') else ""
+        note_info = f"\n📝 {locale.get('record-note', note=note)}" if note else ""
+
         success_text = locale.get(
-            "record-saved",
+            "record-info",
             drink_name=data.get("drink_name"),
             amount=data.get("amount"),
             amount_unit=data.get("amount_unit"),
-            price_text=price_text
+            price_info=price_info,
+            note_info=note_info
         )
 
         await message.answer(success_text)
@@ -147,14 +150,14 @@ async def process_note(message: Message, state: FSMContext, locale: TranslatorRu
     # Clear state and return to menu
     await state.clear()
     menu_text = locale.get("start-menu-text")
-    await message.answer(menu_text, reply_markup=get_start_keyboard())
+    await message.answer(menu_text, reply_markup=get_start_keyboard(locale))
 
 
 @router.message(Command("help"))
 async def help_handler(message: Message, locale: TranslatorRunner):
     """Handle /help command"""
     text = locale.get("help-text")
-    await message.answer(text, reply_markup=get_start_keyboard())
+    await message.answer(text, reply_markup=get_start_keyboard(locale))
 
 
 @router.message(Command("history"))
@@ -168,7 +171,7 @@ async def history_handler(message: Message, locale: TranslatorRunner, user: User
 
         if not records:
             text = locale.get("history-empty")
-            await message.answer(text, reply_markup=get_start_keyboard())
+            await message.answer(text, reply_markup=get_start_keyboard(locale))
             return
 
         header = locale.get("history-header")
@@ -179,7 +182,7 @@ async def history_handler(message: Message, locale: TranslatorRunner, user: User
                 "%d.%m.%Y %H:%M") if record.created_at else "N/A"
             text += f"🍷 {record.drink_name} - {record.amount} {record.amount_unit} ({date_str})\n"
 
-        await message.answer(text, reply_markup=get_start_keyboard())
+        await message.answer(text, reply_markup=get_start_keyboard(locale))
 
     except Exception as e:
         error_text = locale.get("error-database")
@@ -197,7 +200,7 @@ async def stats_handler(message: Message, locale: TranslatorRunner, user: User, 
         total = len(records)
 
         stats_text = locale.get("stats-total", total=total)
-        await message.answer(stats_text, reply_markup=get_start_keyboard())
+        await message.answer(stats_text, reply_markup=get_start_keyboard(locale))
 
     except Exception as e:
         error_text = locale.get("error-database")

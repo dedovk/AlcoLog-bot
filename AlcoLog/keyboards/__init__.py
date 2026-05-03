@@ -4,46 +4,53 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta
 import calendar
+from fluentogram import TranslatorRunner
 
 from database.models import DrinkRecord
 
 
-def get_start_keyboard() -> InlineKeyboardMarkup:
+def get_start_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
     """Main menu keyboard for /start"""
     builder = InlineKeyboardBuilder()
-    builder.button(text="➕ Add Drink", callback_data="add_drink")
-    builder.button(text="📋 History", callback_data="view_history")
-    builder.button(text="📊 Stats", callback_data="view_stats")
-    builder.button(text="📖 Help", callback_data="show_help")
+    builder.button(text=locale.get("btn-add"), callback_data="add_drink")
+    builder.button(text=locale.get("btn-history"),
+                   callback_data="view_history")
+    builder.button(text=locale.get("btn-stats"), callback_data="view_stats")
+    builder.button(text=locale.get("btn-help"), callback_data="show_help")
     builder.adjust(2, 2)  # 2 buttons per row
     return builder.as_markup()
 
 
-def get_skip_confirm_keyboard() -> InlineKeyboardMarkup:
+def get_skip_confirm_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
     """Keyboard with Skip and Confirm buttons"""
     builder = InlineKeyboardBuilder()
-    builder.button(text="⏭️ Skip", callback_data="skip_field")
-    builder.button(text="✅ Confirm", callback_data="confirm_record")
-    builder.button(text="❌ Cancel", callback_data="cancel_add")
+    builder.button(text=locale.get("btn-skip"), callback_data="skip_field")
+    builder.button(text=locale.get("btn-confirm"),
+                   callback_data="confirm_record")
+    builder.button(text=locale.get("btn-cancel"), callback_data="cancel_add")
     builder.adjust(2, 1)  # 2 buttons in first row, 1 in second
     return builder.as_markup()
 
 
-def get_amount_units_keyboard() -> InlineKeyboardMarkup:
+def get_amount_units_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
     """Keyboard for selecting amount units"""
     builder = InlineKeyboardBuilder()
-    builder.button(text="мл (ml)", callback_data="unit_ml")
-    builder.button(text="одиниці (units)", callback_data="unit_units")
-    builder.button(text="грами (g)", callback_data="unit_grams")
+    builder.button(text=f"{locale.get('btn-ml')} (ml)",
+                   callback_data="unit_ml")
+    builder.button(text=f"{locale.get('btn-units')} (units)",
+                   callback_data="unit_units")
+    builder.button(text=f"{locale.get('btn-grams')} (g)",
+                   callback_data="unit_grams")
     builder.adjust(2, 1)
     return builder.as_markup()
 
 
-def get_confirm_cancel_keyboard() -> InlineKeyboardMarkup:
+def get_confirm_cancel_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
     """Keyboard with Confirm and Cancel buttons"""
     builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Confirm", callback_data="confirm_record")
-    builder.button(text="❌ Cancel", callback_data="cancel_add")
+    builder.button(text=locale.get("btn-confirm"),
+                   callback_data="confirm_record")
+    builder.button(text=locale.get("btn-cancel"), callback_data="cancel_add")
     builder.adjust(2)
     return builder.as_markup()
 
@@ -55,17 +62,14 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-async def get_month_calendar(year: int, month: int, user_id: int, session: AsyncSession) -> tuple[InlineKeyboardMarkup, str]:
+async def get_month_calendar(year: int, month: int, user_id: int, session: AsyncSession, locale: TranslatorRunner) -> tuple[InlineKeyboardMarkup, str]:
     """
     Generate calendar keyboard for the given month with marked days
     Returns: (keyboard, header_text)
     """
-    # Get month name in Ukrainian
-    month_names_ua = [
-        "Січень", "Лютий", "Березень", "Квітень", "Май", "Червень",
-        "Липень", "Август", "Вересень", "Жовтень", "Листопад", "Грудень"
-    ]
-    month_name = month_names_ua[month - 1]
+    # Get month name from locale
+    month_key = f"month-{['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'][month - 1]}"
+    month_name = locale.get(month_key)
 
     # Query ALL records for this user (no month filter in SQL - we'll filter in Python)
     stmt = select(DrinkRecord).where(DrinkRecord.user_id == user_id)
@@ -85,11 +89,13 @@ async def get_month_calendar(year: int, month: int, user_id: int, session: Async
                 marked_days[day]["amount"] += record.amount
 
     total_days_with_records = len(marked_days)
-    total_drinks = sum(1 for r in all_records if r.created_at.date().year == year and r.created_at.date().month == month)
+    total_drinks = sum(1 for r in all_records if r.created_at.date(
+    ).year == year and r.created_at.date().month == month)
 
-    # Create header
-    header = f"📅 {month_name} {year}\n"
-    header += f"📊 {total_days_with_records} днів • {total_drinks} напитків"
+    # Create header using locale
+    header = locale.get("calendar-header", month=month_name, year=year) + "\n"
+    header += locale.get("calendar-stat",
+                         days_count=total_days_with_records, drinks_count=total_drinks)
 
     # Build calendar grid
     cal = calendar.monthcalendar(year, month)
@@ -107,29 +113,37 @@ async def get_month_calendar(year: int, month: int, user_id: int, session: Async
                 builder.button(text=" ", callback_data="dummy")
             elif day in marked_days:
                 # Day with records - mark with green circle
-                builder.button(text=f"🟢{day}", callback_data=f"cal_day_{year}_{month}_{day}")
+                builder.button(
+                    text=f"🟢{day}", callback_data=f"cal_day_{year}_{month}_{day}")
             else:
                 # Regular day
-                builder.button(text=str(day), callback_data=f"cal_day_{year}_{month}_{day}")
+                builder.button(
+                    text=str(day), callback_data=f"cal_day_{year}_{month}_{day}")
         builder.adjust(7)  # 7 columns for days
 
     # Navigation buttons
-    builder.button(text="◀️ Попередній", callback_data=f"cal_prev_{year}_{month}")
-    builder.button(text="▶️ Наступний", callback_data=f"cal_next_{year}_{month}")
-    builder.adjust(2)
+    builder.button(text=locale.get("btn-prev"),
+                   callback_data=f"cal_prev_{year}_{month}")
+    builder.button(text=locale.get("btn-next"),
+                   callback_data=f"cal_next_{year}_{month}")
+    builder.adjust(7)
 
     # Back button
-    builder.button(text="◀️ В меню", callback_data="cal_back_to_menu")
+    builder.button(text=locale.get("btn-back-to-menu"),
+                   callback_data="cal_back_to_menu")
 
     return builder.as_markup(), header
 
 
-def get_day_details_keyboard() -> InlineKeyboardMarkup:
+def get_day_details_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
     """Keyboard for day details view"""
     builder = InlineKeyboardBuilder()
-    builder.button(text="◀️ Назад до календаря", callback_data="cal_back_to_month")
-    builder.button(text="➕ Додати запис", callback_data="add_drink")
-    builder.button(text="🏠 В меню", callback_data="back_to_menu")
+    builder.button(text=locale.get("btn-back-to-calendar"),
+                   callback_data="cal_back_to_month")
+    builder.button(text=locale.get("btn-add-record"),
+                   callback_data="add_drink")
+    builder.button(text=locale.get("btn-home"), callback_data="back_to_menu")
+    builder.button(text=locale.get("btn-delete"),
+                   callback_data="delete_records")
     builder.adjust(1, 2)
     return builder.as_markup()
-

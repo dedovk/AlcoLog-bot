@@ -10,7 +10,16 @@ btn-skip = ⏭️ Skip
 btn-confirm = ✅ Confirm
 btn-cancel = ❌ Cancel
 btn-back = ◀️ Back
+btn-calendar = 📅 Calendar
 
 btn-ml = ml
 btn-units = units
 btn-grams = grams
+
+btn-prev = ◀️ Previous
+btn-next = ▶️ Next
+btn-back-to-menu = ◀️ Back to menu
+btn-back-to-calendar = ◀️ Back to calendar
+btn-add-record = ➕ Add record
+btn-delete = Delete records
+btn-home = 🏠 Home

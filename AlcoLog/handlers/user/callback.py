@@ -7,7 +7,7 @@ from sqlalchemy import select, func, and_
 from datetime import datetime, date
 
 from states.states import AddRecordSG, CalendarViewSG
-from keyboards import get_start_keyboard, get_month_calendar, get_day_details_keyboard
+from keyboards import get_skip_confirm_keyboard, get_start_keyboard, get_month_calendar, get_day_details_keyboard
 from database.models import User, DrinkRecord
 
 router = Router()
@@ -19,7 +19,7 @@ async def add_drink_callback(callback: CallbackQuery, state: FSMContext, locale:
     await callback.answer()
 
     text = locale.get("add-drink-prompt")
-    await callback.message.edit_text(text)
+    await callback.message.edit_text(text, reply_markup=get_skip_confirm_keyboard(locale))
     await state.set_state(AddRecordSG.waiting_for_drink)
 
 
@@ -45,10 +45,10 @@ async def view_history_callback(callback: CallbackQuery, locale: TranslatorRunne
                     "%d.%m.%Y %H:%M") if record.created_at else "N/A"
                 text += f"🍷 {record.drink_name} - {record.amount} {record.amount_unit} ({date_str})\n"
 
-        await callback.message.edit_text(text, reply_markup=get_start_keyboard())
+        await callback.message.edit_text(text, reply_markup=get_start_keyboard(locale))
     except Exception as e:
         error_text = locale.get("error-database")
-        await callback.message.edit_text(error_text, reply_markup=get_start_keyboard())
+        await callback.message.edit_text(error_text, reply_markup=get_start_keyboard(locale))
 
 
 @router.callback_query(F.data == "view_stats")
@@ -64,19 +64,21 @@ async def view_stats_callback(callback: CallbackQuery, locale: TranslatorRunner,
         total = len(records)
 
         stats_text = locale.get("stats-total", total=total)
-        stats_text += "\n\n📅 Переглянути по календарю →"
+        stats_text += "\n\n" + locale.get("stats-calendar-prompt")
 
         # Build stats keyboard with calendar button
         from aiogram.utils.keyboard import InlineKeyboardBuilder
         builder = InlineKeyboardBuilder()
-        builder.button(text="📅 Календар", callback_data="show_calendar")
-        builder.button(text="◀️ Назад", callback_data="back_to_menu")
+        builder.button(text=locale.get("btn-calendar"),
+                       callback_data="show_calendar")
+        builder.button(text=locale.get("btn-back"),
+                       callback_data="back_to_menu")
         builder.adjust(5)
 
         await callback.message.edit_text(stats_text, reply_markup=builder.as_markup())
     except Exception:
         error_text = locale.get("error-database")
-        await callback.message.edit_text(error_text, reply_markup=get_start_keyboard())
+        await callback.message.edit_text(error_text, reply_markup=get_start_keyboard(locale))
 
 
 @router.callback_query(F.data == "show_help")
@@ -86,14 +88,14 @@ async def show_help_callback(callback: CallbackQuery, locale: TranslatorRunner):
 
     help_text = locale.get("help-text")
     try:
-        await callback.message.edit_text(help_text, reply_markup=get_start_keyboard())
+        await callback.message.edit_text(help_text, reply_markup=get_start_keyboard(locale))
     except Exception:
         # If message content is same, just answer
         await callback.answer(help_text, show_alert=False)
 
 
 @router.callback_query(F.data == "skip_field")
-async def skip_field_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner):
+async def skip_field_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner, user: User, session: AsyncSession):
     """Handle Skip button in FSM flow"""
     await callback.answer()
 
@@ -112,133 +114,117 @@ async def skip_field_callback(callback: CallbackQuery, state: FSMContext, locale
         # Skip amount, go to price
         text = locale.get("add-price-prompt")
         await state.update_data(amount=0, amount_unit="ml")
-        await callback.message.edit_text(text)
+        await callback.message.edit_text(text, reply_markup=get_skip_confirm_keyboard(locale))
         await state.set_state(AddRecordSG.waiting_for_price)
 
     elif current_state == AddRecordSG.waiting_for_price:
         # Skip price, go to note
         text = locale.get("add-note-prompt")
         await state.update_data(price=None)
-        await callback.message.edit_text(text)
+        await callback.message.edit_text(text, reply_markup=get_skip_confirm_keyboard(locale))
         await state.set_state(AddRecordSG.waiting_for_note)
 
     elif current_state == AddRecordSG.waiting_for_note:
-        # Skip note, confirm record (handled in message handler)
-        pass
+        # Skip note, save record
+        data = await state.get_data()
+
+        try:
+            # Create and save drink record with empty note
+            record = DrinkRecord(
+                user_id=user.id,
+                drink_name=data.get("drink_name"),
+                amount=data.get("amount"),
+                amount_unit=data.get("amount_unit", "ml"),
+                price=data.get("price"),
+                note=None
+            )
+
+            session.add(record)
+            await session.commit()
+
+            # Build success message
+            price_info = f"\n💰 {locale.get('record-price', price=data.get('price'))}" if data.get(
+                'price') else ""
+            success_text = locale.get(
+                "record-info",
+                drink_name=data.get("drink_name"),
+                amount=data.get("amount"),
+                amount_unit=data.get("amount_unit"),
+                price_info=price_info,
+                note_info=""
+            )
+
+            await callback.message.edit_text(success_text, reply_markup=get_start_keyboard(locale))
+        except Exception as e:
+            error_text = locale.get("error-database")
+            await callback.message.edit_text(error_text, reply_markup=get_start_keyboard(locale))
+
+        await state.clear()
 
 
 @router.callback_query(F.data == "confirm_record")
-async def confirm_record_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner):
+async def confirm_record_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner, user: User, session: AsyncSession):
     """Handle Confirm button"""
     await callback.answer()
 
     current_state = await state.get_state()
     data = await state.get_data()
 
-    # Check if all required fields are filled
+    # Check if drink name exists
     if not data.get("drink_name"):
         error_text = locale.get("error-invalid-input")
         await callback.answer(error_text, show_alert=True)
         return
 
-    confirm_text = f"✅ {locale.get('start-menu-text')}"
-    try:
-        await callback.message.edit_text(confirm_text, reply_markup=get_start_keyboard())
-    except Exception:
-        # If message content is same, don't edit
-        pass
-    await state.clear()
-
-
-@router.callback_query(F.data == "cancel_add")
-async def cancel_add_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner):
-    """Handle Cancel button"""
-    await callback.answer()
-
-    cancel_text = locale.get("cancel-confirmed")
-    menu_text = locale.get("start-menu-text")
-
-    try:
-        await callback.message.edit_text(
-            f"{cancel_text}\n\n{menu_text}",
-            reply_markup=get_start_keyboard()
-        )
-    except Exception:
-        # If message content is same, don't edit
-        pass
-    await state.clear()
-
-
-@router.callback_query(F.data == "back_to_menu")
-async def back_to_menu_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner):
-    """Handle Back to Menu button"""
-    await callback.answer()
-    await state.clear()
-
-    menu_text = locale.get("start-menu-text")
-    try:
-        await callback.message.edit_text(menu_text, reply_markup=get_start_keyboard())
-    except Exception:
-        # If message content is same, don't edit
-        pass
-
-
-@router.callback_query(F.data == "skip_field")
-async def skip_field_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner):
-    """Handle Skip button in FSM flow"""
-    await callback.answer()
-
-    current_state = await state.get_state()
-
-    # Get next state prompt based on current state
-    data = await state.get_data()
-
-    if current_state == AddRecordSG.waiting_for_drink:
-        # Can't skip drink name
-        error_text = locale.get("error-invalid-input")
-        await callback.answer(error_text, show_alert=True)
-        return
-
-    elif current_state == AddRecordSG.waiting_for_amount:
-        # Skip amount, go to price
+    # Handle Confirm on different states
+    if current_state == AddRecordSG.waiting_for_amount:
+        # Confirm at amount stage - treat as entering 0 and skip to price
         text = locale.get("add-price-prompt")
         await state.update_data(amount=0, amount_unit="ml")
-        await callback.message.edit_text(text)
+        await callback.message.edit_text(text, reply_markup=get_skip_confirm_keyboard(locale))
         await state.set_state(AddRecordSG.waiting_for_price)
 
     elif current_state == AddRecordSG.waiting_for_price:
-        # Skip price, go to note
+        # Confirm at price stage - treat as skip price and go to note
         text = locale.get("add-note-prompt")
         await state.update_data(price=None)
-        await callback.message.edit_text(text)
+        await callback.message.edit_text(text, reply_markup=get_skip_confirm_keyboard(locale))
         await state.set_state(AddRecordSG.waiting_for_note)
 
     elif current_state == AddRecordSG.waiting_for_note:
-        # Skip note, confirm record (handled in message handler)
-        pass
+        # Confirm at note stage - save record with empty note
+        try:
+            # Create and save drink record
+            record = DrinkRecord(
+                user_id=user.id,
+                drink_name=data.get("drink_name"),
+                amount=data.get("amount"),
+                amount_unit=data.get("amount_unit", "ml"),
+                price=data.get("price"),
+                note=None
+            )
 
+            session.add(record)
+            await session.commit()
 
-@router.callback_query(F.data == "confirm_record")
-async def confirm_record_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner):
-    """Handle Confirm button"""
-    await callback.answer()
+            # Build success message
+            price_info = f"\n💰 {locale.get('record-price', price=data.get('price'))}" if data.get(
+                'price') else ""
+            success_text = locale.get(
+                "record-info",
+                drink_name=data.get("drink_name"),
+                amount=data.get("amount"),
+                amount_unit=data.get("amount_unit"),
+                price_info=price_info,
+                note_info=""
+            )
 
-    current_state = await state.get_state()
-    data = await state.get_data()
+            await callback.message.edit_text(success_text, reply_markup=get_start_keyboard(locale))
+        except Exception as e:
+            error_text = locale.get("error-database")
+            await callback.message.edit_text(error_text, reply_markup=get_start_keyboard(locale))
 
-    # Check if all required fields are filled
-    if not data.get("drink_name"):
-        error_text = locale.get("error-invalid-input")
-        await callback.answer(error_text, show_alert=True)
-        return
-
-    confirm_text = f"✅ {locale.get('start-menu-text')}"
-    try:
-        await callback.message.edit_text(confirm_text, reply_markup=get_start_keyboard())
-    except Exception:
-        # If message content is same, don't edit
-        pass
-    await state.clear()
+        await state.clear()
 
 
 @router.callback_query(F.data == "cancel_add")
@@ -252,7 +238,7 @@ async def cancel_add_callback(callback: CallbackQuery, state: FSMContext, locale
     try:
         await callback.message.edit_text(
             f"{cancel_text}\n\n{menu_text}",
-            reply_markup=get_start_keyboard()
+            reply_markup=get_start_keyboard(locale)
         )
     except Exception:
         # If message content is same, don't edit
@@ -268,10 +254,24 @@ async def back_to_menu_callback(callback: CallbackQuery, state: FSMContext, loca
 
     menu_text = locale.get("start-menu-text")
     try:
-        await callback.message.edit_text(menu_text, reply_markup=get_start_keyboard())
+        await callback.message.edit_text(menu_text, reply_markup=get_start_keyboard(locale))
     except Exception:
         # If message content is same, don't edit
         pass
+
+
+@router.callback_query(F.data.startswith("unit_"))
+async def unit_selection_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner):
+    """Handle unit selection"""
+    await callback.answer()
+
+    unit = callback.data.split("_", 1)[1]  # Get unit from "unit_ml" -> "ml"
+
+    await state.update_data(amount_unit=unit)
+
+    text = locale.get("add-price-prompt")
+    await callback.message.edit_text(text, reply_markup=get_skip_confirm_keyboard(locale))
+    await state.set_state(AddRecordSG.waiting_for_price)
 
 
 # ============ CALENDAR HANDLERS ============
@@ -286,7 +286,7 @@ async def show_calendar_callback(callback: CallbackQuery, state: FSMContext, loc
     year, month = today.year, today.month
 
     # Generate calendar
-    keyboard, header = await get_month_calendar(year, month, user.id, session)
+    keyboard, header = await get_month_calendar(year, month, user.id, session, locale)
 
     try:
         await callback.message.edit_text(header, reply_markup=keyboard)
@@ -306,7 +306,7 @@ async def calendar_day_callback(callback: CallbackQuery, locale: TranslatorRunne
     try:
         year, month, day = int(parts[2]), int(parts[3]), int(parts[4])
     except (IndexError, ValueError):
-        await callback.answer("Помилка при розборі дати", show_alert=True)
+        await callback.answer(locale.get("error-date-parse"), show_alert=True)
         return
 
     from datetime import timedelta
@@ -332,9 +332,9 @@ async def calendar_day_callback(callback: CallbackQuery, locale: TranslatorRunne
     day_text = f"📊 {date_str}\n\n"
 
     if not records:
-        day_text += "❌ Немає записів за цей день"
+        day_text += locale.get("day-no-records")
     else:
-        day_text += f"🍷 Напитків: {len(records)}\n\n"
+        day_text += locale.get("day-drinks-count", count=len(records)) + "\n\n"
 
         total_amount = 0
         total_price = 0
@@ -351,11 +351,14 @@ async def calendar_day_callback(callback: CallbackQuery, locale: TranslatorRunne
                 day_text += f" | {record.note}"
             day_text += "\n"
 
-        day_text += f"\n📈 Всього: {total_amount} мл" if total_amount > 0 else ""
-        day_text += f"\n💰 Витрачено: {total_price} грн" if total_price > 0 else ""
+        if total_amount > 0:
+            day_text += "\n" + \
+                locale.get("day-total-amount", amount=total_amount)
+        if total_price > 0:
+            day_text += "\n" + locale.get("day-total-price", price=total_price)
 
     try:
-        await callback.message.edit_text(day_text, reply_markup=get_day_details_keyboard())
+        await callback.message.edit_text(day_text, reply_markup=get_day_details_keyboard(locale))
     except Exception:
         pass
 
@@ -380,7 +383,7 @@ async def calendar_prev_month_callback(callback: CallbackQuery, locale: Translat
         month -= 1
 
     # Generate calendar
-    keyboard, header = await get_month_calendar(year, month, user.id, session)
+    keyboard, header = await get_month_calendar(year, month, user.id, session, locale)
 
     # Update callback_data for nav buttons
     keyboard.inline_keyboard[-2][0].callback_data = f"cal_prev_{year}_{month}"
@@ -412,7 +415,7 @@ async def calendar_next_month_callback(callback: CallbackQuery, locale: Translat
         month += 1
 
     # Generate calendar
-    keyboard, header = await get_month_calendar(year, month, user.id, session)
+    keyboard, header = await get_month_calendar(year, month, user.id, session, locale)
 
     # Update callback_data for nav buttons
     keyboard.inline_keyboard[-2][0].callback_data = f"cal_prev_{year}_{month}"
@@ -433,7 +436,7 @@ async def calendar_back_to_month_callback(callback: CallbackQuery, locale: Trans
     today = datetime.now()
     year, month = today.year, today.month
 
-    keyboard, header = await get_month_calendar(year, month, user.id, session)
+    keyboard, header = await get_month_calendar(year, month, user.id, session, locale)
 
     try:
         await callback.message.edit_text(header, reply_markup=keyboard)
@@ -449,6 +452,6 @@ async def calendar_back_to_menu_callback(callback: CallbackQuery, state: FSMCont
 
     menu_text = locale.get("start-menu-text")
     try:
-        await callback.message.edit_text(menu_text, reply_markup=get_start_keyboard())
+        await callback.message.edit_text(menu_text, reply_markup=get_start_keyboard(locale))
     except Exception:
         pass

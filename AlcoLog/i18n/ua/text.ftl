@@ -23,12 +23,22 @@ add-price-prompt = 💰 Ціна:
 add-note-prompt = 📌 Примітка:
     Додайте примітку або опис (опціонально, можна пропустити).
 
+select-unit-prompt = Оберіть одиницю виміру:
+
 record-saved = ✅ Запис збережено!
     Напиток: { $drink_name }
     Обсяг: { $amount } { $amount_unit }
     { $price_text }
 
 cancel-confirmed = ❌ Операція скасована.
+
+record-price = Ціна: { $price } грн.
+
+record-note = Примітка: { $note }
+
+record-info = ✅ Запис збережено!
+    🍷 Напиток: { $drink_name }
+    📊 Кількість: { $amount } { $amount_unit }{ $price_info }{ $note_info }
 
 history-empty = 📭 Історія порожня. Додайте свій перший запис!
 
@@ -41,4 +51,30 @@ error-database = ❌ Помилка бази даних. Спробуйте пі
 stats-total = 📊 Всього записів: { $total }
 
 stats-last-week = 📅 За останній тиждень: { $count }
+
+stats-calendar-prompt = 📅 Переглянути по календарю →
+
+# Calendar translations
+month-january = Січень
+month-february = Лютий
+month-march = Березень
+month-april = Квітень
+month-may = Май
+month-june = Червень
+month-july = Липень
+month-august = Август
+month-september = Вересень
+month-october = Жовтень
+month-november = Листопад
+month-december = Грудень
+
+calendar-header = 📅 { $month } { $year }
+calendar-stat = 📊 { $days_count } днів • { $drinks_count } напитків
+
+day-no-records = ❌ Немає записів за цей день
+day-drinks-count = 🍷 Напитків: { $count }
+day-total-amount = 📈 Всього: { $amount } мл
+day-total-price = 💰 Витрачено: { $price } грн
+
+error-date-parse = ❌ Помилка при розборі дати
 

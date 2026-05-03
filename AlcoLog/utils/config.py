@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     BOT_TOKEN: str
 
     class Config:
-        env_file = os.path.join(BASE_DIR, ".env")
+        env_file = os.path.join(BASE_DIR.parent, ".env")
         env_file_encoding = "utf-8"
 
 

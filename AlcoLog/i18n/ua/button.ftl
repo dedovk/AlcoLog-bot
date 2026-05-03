@@ -10,7 +10,16 @@ btn-skip = ⏭️ Пропустити
 btn-confirm = ✅ Підтвердити
 btn-cancel = ❌ Скасувати
 btn-back = ◀️ Назад
+btn-calendar = 📅 Календар
 
 btn-ml = мл
 btn-units = одиниці
 btn-grams = грами
+
+btn-prev = ◀️ Попередній
+btn-next = ▶️ Наступний
+btn-back-to-menu = ◀️ В меню
+btn-back-to-calendar = ◀️ Назад до календаря
+btn-add-record = ➕ Додати запис
+btn-delete = Видалити записи
+btn-home = 🏠 В меню

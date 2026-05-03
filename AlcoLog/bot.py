@@ -16,11 +16,11 @@ t_hub = TranslatorHub(
     {"ua": ("ua",), "ru": ("ru",), "en": ("en",)},
     translators=[
         FluentTranslator(locale="ua", translator=FluentBundle.from_files(
-            "uk-UA", filenames=["i18n/ua/text.ftl", "i18n/ua/button.ftl"])),
+            "uk-UA", filenames=["AlcoLog/i18n/ua/text.ftl", "AlcoLog/i18n/ua/button.ftl"])),
         FluentTranslator(locale="ru", translator=FluentBundle.from_files(
-            "ru-RU", filenames=["i18n/ru/text.ftl", "i18n/ru/button.ftl"])),
+            "ru-RU", filenames=["AlcoLog/i18n/ru/text.ftl", "AlcoLog/i18n/ru/button.ftl"])),
         FluentTranslator(locale="en", translator=FluentBundle.from_files(
-            "en-US", filenames=["i18n/eng/text.ftl", "i18n/eng/button.ftl"])),
+            "en-US", filenames=["AlcoLog/i18n/eng/text.ftl", "AlcoLog/i18n/eng/button.ftl"])),
     ],
     root_locale="ua"
 )
@@ -65,4 +65,3 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
-

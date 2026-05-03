@@ -23,12 +23,22 @@ add-price-prompt = 💰 Price:
 add-note-prompt = 📌 Note:
     Add a note or description (optional, can skip).
 
+select-unit-prompt = Select amount unit:
+
 record-saved = ✅ Record saved!
     Drink: { $drink_name }
     Amount: { $amount } { $amount_unit }
     { $price_text }
 
 cancel-confirmed = ❌ Operation cancelled.
+
+record-price = Price: { $price } UAH
+
+record-note = Note: { $note }
+
+record-info = ✅ Record saved!
+    🍷 Drink: { $drink_name }
+    📊 Amount: { $amount } { $amount_unit }{ $price_info }{ $note_info }
 
 history-empty = 📭 History is empty. Add your first record!
 
@@ -41,3 +51,29 @@ error-database = ❌ Database error. Try again later.
 stats-total = 📊 Total records: { $total }
 
 stats-last-week = 📅 Last week: { $count }
+
+stats-calendar-prompt = 📅 View by calendar →
+
+# Calendar translations
+month-january = January
+month-february = February
+month-march = March
+month-april = April
+month-may = May
+month-june = June
+month-july = July
+month-august = August
+month-september = September
+month-october = October
+month-november = November
+month-december = December
+
+calendar-header = 📅 { $month } { $year }
+calendar-stat = 📊 { $days_count } days • { $drinks_count } drinks
+
+day-no-records = ❌ No records for this day
+day-drinks-count = 🍷 Drinks: { $count }
+day-total-amount = 📈 Total: { $amount } ml
+day-total-price = 💰 Spent: { $price } UAH
+
+error-date-parse = ❌ Error parsing date
