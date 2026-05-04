@@ -28,7 +28,6 @@ t_hub = TranslatorHub(
 
 async def main():
     # Initialize database
-    await init_db()
     logger.info("Database initialized.")
 
     session = AiohttpSession()
