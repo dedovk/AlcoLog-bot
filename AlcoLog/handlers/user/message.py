@@ -4,9 +4,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from fluentogram import TranslatorRunner
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timedelta
 
 from AlcoLog.states.states import AddRecordSG
-from AlcoLog.keyboards import get_start_keyboard, get_skip_confirm_keyboard, get_amount_units_keyboard
+from AlcoLog.keyboards import get_start_keyboard, get_skip_confirm_keyboard, get_amount_units_keyboard, get_cancel_keyboard
 from AlcoLog.database.db import AsyncSessionLocal
 from AlcoLog.database.models import DrinkRecord, User
 from sqlalchemy import select
@@ -33,18 +34,18 @@ async def add_record_start(message: Message, state: FSMContext, locale: Translat
     """Start the AddRecord FSM flow"""
     text = locale.get("add-drink-prompt")
 
-    await message.answer(text, reply_markup=get_skip_confirm_keyboard(locale))
+    await message.answer(text, reply_markup=get_cancel_keyboard(locale))
     await state.set_state(AddRecordSG.waiting_for_drink)
 
 
 @router.message(AddRecordSG.waiting_for_drink, StateFilter(AddRecordSG.waiting_for_drink))
 async def process_drink_name(message: Message, state: FSMContext, locale: TranslatorRunner):
     """Process drink name input"""
-    drink_name = message.text.strip()
+    drink_name = (message.text or "").strip()
 
     if not drink_name or len(drink_name) > 255:
         error_text = locale.get("error-invalid-input")
-        await message.answer(error_text)
+        await message.answer(error_text, reply_markup=get_cancel_keyboard(locale))
         return
 
     await state.update_data(drink_name=drink_name)
@@ -57,7 +58,7 @@ async def process_drink_name(message: Message, state: FSMContext, locale: Transl
 @router.message(AddRecordSG.waiting_for_amount)
 async def process_amount(message: Message, state: FSMContext, locale: TranslatorRunner):
     """Process amount input"""
-    amount_text = message.text.strip()
+    amount_text = (message.text or "").strip()
 
     # Try to parse as float
     try:
@@ -79,7 +80,7 @@ async def process_amount(message: Message, state: FSMContext, locale: Translator
 @router.message(AddRecordSG.waiting_for_price)
 async def process_price(message: Message, state: FSMContext, locale: TranslatorRunner):
     """Process price input (optional)"""
-    price_text = message.text.strip()
+    price_text = (message.text or "").strip()
     price = None
 
     if price_text and price_text.lower() != "skip":
@@ -193,15 +194,63 @@ async def history_handler(message: Message, locale: TranslatorRunner, user: User
 async def stats_handler(message: Message, locale: TranslatorRunner, user: User, session: AsyncSession):
     """Handle /stats command"""
     try:
-        # Get total records count
         stmt = select(DrinkRecord).where(DrinkRecord.user_id == user.id)
         result = await session.execute(stmt)
         records = result.scalars().all()
+
         total = len(records)
+        last_week = 0
+        unique_days = set()
+        total_spent = 0.0
+        drink_counts = {}
+
+        today = datetime.now().date()
+        week_start = today - timedelta(days=6)
+
+        for record in records:
+            record_date = record.created_at.date() if record.created_at else None
+            if record_date:
+                unique_days.add(record_date)
+                if record_date >= week_start:
+                    last_week += 1
+            if record.price:
+                total_spent += record.price
+            name = (record.drink_name or "").strip()
+            if name:
+                drink_counts[name] = drink_counts.get(name, 0) + 1
+
+        most_popular = max(
+            drink_counts, key=drink_counts.get) if drink_counts else None
+        distinct_drinks = len(drink_counts)
+        average_price = total_spent / total if total else 0.0
 
         stats_text = locale.get("stats-total", total=total)
-        await message.answer(stats_text, reply_markup=get_start_keyboard(locale))
+        stats_text += "\n" + locale.get("stats-last-week", count=last_week)
+        stats_text += "\n" + locale.get("stats-days", days=len(unique_days))
+        stats_text += "\n" + \
+            locale.get("stats-unique-drinks", count=distinct_drinks)
+        if total_spent > 0:
+            stats_text += "\n" + \
+                locale.get("stats-total-spent", amount=round(total_spent, 2))
+            stats_text += "\n" + \
+                locale.get("stats-average-price",
+                           price=round(average_price, 2))
+        if most_popular:
+            stats_text += "\n" + \
+                locale.get("stats-most-popular-drink", drink=most_popular)
 
-    except Exception as e:
+        stats_text += "\n\n" + locale.get("stats-calendar-prompt")
+
+        from aiogram.utils.keyboard import InlineKeyboardBuilder
+        builder = InlineKeyboardBuilder()
+        builder.button(text=locale.get("btn-calendar"),
+                       callback_data="show_calendar")
+        builder.button(text=locale.get("btn-back"),
+                       callback_data="back_to_menu")
+        builder.adjust(2)
+
+        await message.answer(stats_text, reply_markup=builder.as_markup())
+
+    except Exception:
         error_text = locale.get("error-database")
         await message.answer(error_text)

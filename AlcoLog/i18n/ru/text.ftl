@@ -51,6 +51,11 @@ error-database = ❌ Ошибка базы данных. Попробуйте п
 stats-total = 📊 Всего записей: { $total }
 
 stats-last-week = 📅 За последнюю неделю: { $count }
+stats-days = 📅 Дней с записями: { $days }
+stats-unique-drinks = 🍸 Разных напитков: { $count }
+stats-total-spent = 💰 Потрачено всего: { $amount } грн
+stats-average-price = 🔎 Средняя цена за запись: { $price } грн
+stats-most-popular-drink = ⭐ Самый популярный напиток: { $drink }
 
 stats-calendar-prompt = 📅 Просмотреть по календарю →
 

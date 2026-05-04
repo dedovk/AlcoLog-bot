@@ -4,10 +4,10 @@ from aiogram.types import CallbackQuery
 from fluentogram import TranslatorRunner
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from AlcoLog.states.states import AddRecordSG, CalendarViewSG
-from AlcoLog.keyboards import get_skip_confirm_keyboard, get_start_keyboard, get_month_calendar, get_day_details_keyboard
+from AlcoLog.keyboards import get_skip_confirm_keyboard, get_start_keyboard, get_month_calendar, get_day_details_keyboard, get_cancel_keyboard
 from AlcoLog.database.models import User, DrinkRecord
 
 router = Router()
@@ -19,7 +19,7 @@ async def add_drink_callback(callback: CallbackQuery, state: FSMContext, locale:
     await callback.answer()
 
     text = locale.get("add-drink-prompt")
-    await callback.message.edit_text(text, reply_markup=get_skip_confirm_keyboard(locale))
+    await callback.message.edit_text(text, reply_markup=get_cancel_keyboard(locale))
     await state.set_state(AddRecordSG.waiting_for_drink)
 
 
@@ -57,23 +57,60 @@ async def view_stats_callback(callback: CallbackQuery, locale: TranslatorRunner,
     await callback.answer()
 
     try:
-        # Get total records count
         stmt = select(DrinkRecord).where(DrinkRecord.user_id == user.id)
         result = await session.execute(stmt)
         records = result.scalars().all()
+
         total = len(records)
+        last_week = 0
+        unique_days = set()
+        total_spent = 0.0
+        drink_counts = {}
+
+        today = datetime.now().date()
+        week_start = today - timedelta(days=6)
+
+        for record in records:
+            record_date = record.created_at.date() if record.created_at else None
+            if record_date:
+                unique_days.add(record_date)
+                if record_date >= week_start:
+                    last_week += 1
+            if record.price:
+                total_spent += record.price
+            name = (record.drink_name or "").strip()
+            if name:
+                drink_counts[name] = drink_counts.get(name, 0) + 1
+
+        most_popular = max(
+            drink_counts, key=drink_counts.get) if drink_counts else None
+        distinct_drinks = len(drink_counts)
+        average_price = total_spent / total if total else 0.0
 
         stats_text = locale.get("stats-total", total=total)
+        stats_text += "\n" + locale.get("stats-last-week", count=last_week)
+        stats_text += "\n" + locale.get("stats-days", days=len(unique_days))
+        stats_text += "\n" + \
+            locale.get("stats-unique-drinks", count=distinct_drinks)
+        if total_spent > 0:
+            stats_text += "\n" + \
+                locale.get("stats-total-spent", amount=round(total_spent, 2))
+            stats_text += "\n" + \
+                locale.get("stats-average-price",
+                           price=round(average_price, 2))
+        if most_popular:
+            stats_text += "\n" + \
+                locale.get("stats-most-popular-drink", drink=most_popular)
+
         stats_text += "\n\n" + locale.get("stats-calendar-prompt")
 
-        # Build stats keyboard with calendar button
         from aiogram.utils.keyboard import InlineKeyboardBuilder
         builder = InlineKeyboardBuilder()
         builder.button(text=locale.get("btn-calendar"),
                        callback_data="show_calendar")
         builder.button(text=locale.get("btn-back"),
                        callback_data="back_to_menu")
-        builder.adjust(5)
+        builder.adjust(2)
 
         await callback.message.edit_text(stats_text, reply_markup=builder.as_markup())
     except Exception:
@@ -492,7 +529,7 @@ async def delete_confirm_callback(callback: CallbackQuery, locale: TranslatorRun
 
     # Parse date from callback data
     date_str = callback.data.replace("delete_confirm_", "")
-    
+
     try:
         # Parse date in format YYYY-MM-DD
         year, month, day = map(int, date_str.split("-"))
@@ -503,28 +540,30 @@ async def delete_confirm_callback(callback: CallbackQuery, locale: TranslatorRun
 
     try:
         from datetime import timedelta
-        
+
         # Query and delete all records for this day
         next_day = selected_date + timedelta(days=1)
         stmt = select(DrinkRecord).where(
             and_(
                 DrinkRecord.user_id == user.id,
-                DrinkRecord.created_at >= datetime.combine(selected_date, datetime.min.time()),
-                DrinkRecord.created_at < datetime.combine(next_day, datetime.min.time())
+                DrinkRecord.created_at >= datetime.combine(
+                    selected_date, datetime.min.time()),
+                DrinkRecord.created_at < datetime.combine(
+                    next_day, datetime.min.time())
             )
         )
-        
+
         result = await session.execute(stmt)
         records = result.scalars().all()
 
         # Delete records
         for record in records:
             await session.delete(record)
-        
+
         await session.commit()
 
         success_text = locale.get("delete-success")
-        
+
         # Return to calendar
         today = datetime.now()
         year, month = today.year, today.month
@@ -546,19 +585,21 @@ async def cancel_delete_callback(callback: CallbackQuery, locale: TranslatorRunn
     await callback.answer()
 
     cancelled_text = locale.get("delete-cancelled")
-    
+
     # Go back to current day view (today)
     today = datetime.now()
     selected_date = today.date()
 
     from datetime import timedelta
     next_day = selected_date + timedelta(days=1)
-    
+
     stmt = select(DrinkRecord).where(
         and_(
             DrinkRecord.user_id == user.id,
-            DrinkRecord.created_at >= datetime.combine(selected_date, datetime.min.time()),
-            DrinkRecord.created_at < datetime.combine(next_day, datetime.min.time())
+            DrinkRecord.created_at >= datetime.combine(
+                selected_date, datetime.min.time()),
+            DrinkRecord.created_at < datetime.combine(
+                next_day, datetime.min.time())
         )
     ).order_by(DrinkRecord.created_at.desc())
 
@@ -590,7 +631,8 @@ async def cancel_delete_callback(callback: CallbackQuery, locale: TranslatorRunn
             day_text += "\n"
 
         if total_amount > 0:
-            day_text += "\n" + locale.get("day-total-amount", amount=total_amount)
+            day_text += "\n" + \
+                locale.get("day-total-amount", amount=total_amount)
         if total_price > 0:
             day_text += "\n" + locale.get("day-total-price", price=total_price)
 

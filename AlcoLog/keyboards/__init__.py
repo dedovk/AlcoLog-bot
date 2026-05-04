@@ -55,6 +55,13 @@ def get_confirm_cancel_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarku
     return builder.as_markup()
 
 
+def get_cancel_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
+    """Keyboard with Cancel button only"""
+    builder = InlineKeyboardBuilder()
+    builder.button(text=locale.get("btn-cancel"), callback_data="cancel_add")
+    return builder.as_markup()
+
+
 def get_back_keyboard() -> InlineKeyboardMarkup:
     """Keyboard with Back button"""
     builder = InlineKeyboardBuilder()

@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import pool
 from alembic import context
 
-# Додаємо шлях до проекту
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 config = context.config
@@ -50,7 +49,6 @@ async def run_migrations_online() -> None:
     )
 
     async with connectable.connect() as connection:
-        # Виконуємо міграції через допоміжну функцію do_run_migrations
         await connection.run_sync(do_run_migrations)
 
     await connectable.dispose()

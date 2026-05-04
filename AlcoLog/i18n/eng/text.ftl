@@ -51,6 +51,11 @@ error-database = ❌ Database error. Try again later.
 stats-total = 📊 Total records: { $total }
 
 stats-last-week = 📅 Last week: { $count }
+stats-days = 📅 Days with records: { $days }
+stats-unique-drinks = 🍸 Different drinks: { $count }
+stats-total-spent = 💰 Total spent: { $amount } UAH
+stats-average-price = 🔎 Average price per record: { $price } UAH
+stats-most-popular-drink = ⭐ Most popular drink: { $drink }
 
 stats-calendar-prompt = 📅 View by calendar →
 
