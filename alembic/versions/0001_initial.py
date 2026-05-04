@@ -42,8 +42,7 @@ def upgrade() -> None:
                     sa.Column('updated_at', sa.DateTime(),
                               server_default=sa.text('now()'), nullable=True),
                     sa.Column('blocked_at', sa.DateTime(), nullable=True),
-                    sa.PrimaryKeyConstraint('id'),
-                    if_not_exists=True,
+                    sa.PrimaryKeyConstraint('id')
                     )
     op.create_index('idx_users_username', 'users', [
                     'username'], unique=False, if_not_exists=True)
