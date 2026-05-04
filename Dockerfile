@@ -13,4 +13,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", "-m", "AlcoLog.bot"]
+CMD ["sh", "-c", "alembic upgrade head && python -m AlcoLog.bot"]
