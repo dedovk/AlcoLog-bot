@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Index
+from sqlalchemy import BigInteger, Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Index
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
@@ -10,7 +10,7 @@ class User(Base):
     """User model for storing Telegram user information"""
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(BigInteger, primary_key=True)
     is_bot = Column(Boolean, default=False)
     refer_id = Column(Integer, nullable=True)
     first_name = Column(String(255), nullable=False)
