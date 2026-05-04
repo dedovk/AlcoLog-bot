@@ -20,9 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table('users',
-                    sa.Column('id', sa.Integer(), nullable=False),
+                    sa.Column('id', sa.BigInteger(), nullable=False),
                     sa.Column('is_bot', sa.Boolean(), nullable=True),
-                    sa.Column('refer_id', sa.Integer(), nullable=True),
+                    sa.Column('refer_id', sa.BigInteger(), nullable=True),
                     sa.Column('first_name', sa.String(
                         length=255), nullable=False),
                     sa.Column('last_name', sa.String(
@@ -53,7 +53,7 @@ def upgrade() -> None:
 
     op.create_table('drink_records',
                     sa.Column('id', sa.Integer(), nullable=False),
-                    sa.Column('user_id', sa.Integer(), nullable=False),
+                    sa.Column('user_id', sa.BigInteger(), nullable=False),
                     sa.Column('drink_name', sa.String(
                         length=255), nullable=False),
                     sa.Column('amount', sa.Float(), nullable=True),
