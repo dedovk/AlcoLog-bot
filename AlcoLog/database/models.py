@@ -12,7 +12,7 @@ class User(Base):
 
     id = Column(BigInteger, primary_key=True)
     is_bot = Column(Boolean, default=False)
-    refer_id = Column(Integer, nullable=True)
+    refer_id = Column(BigInteger, nullable=True)
     first_name = Column(String(255), nullable=False)
     last_name = Column(String(255), nullable=True)
     username = Column(String(255), nullable=True)
@@ -45,8 +45,8 @@ class DrinkRecord(Base):
     """Drink record model for tracking alcohol consumption"""
     __tablename__ = "drink_records"
 
-    id = Column(BigInteger, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     drink_name = Column(String(255), nullable=False)
     amount = Column(Float, nullable=True)  # in ml or units
     amount_unit = Column(String(50), nullable=True)  # ml, units, etc.
