@@ -1,11 +1,13 @@
-import os
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.pool import StaticPool
 from AlcoLog.database.models import Base
+from AlcoLog.utils.config import settings
 
-# Database URL
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./database.db")
+DATABASE_URL = settings.DATABASE_URL
+
+# Fix URL prefix if needed
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace(
+        "postgresql://", "postgresql+asyncpg://", 1)
 
 # Create async engine
 engine = create_async_engine(
@@ -29,17 +31,14 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def init_db():
-    """Initialize database - create all tables"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
 async def get_session():
-    """Get database session - use as dependency in handlers"""
     async with AsyncSessionLocal() as session:
         yield session
 
 
 async def close_db():
-    """Close database connection"""
     await engine.dispose()
