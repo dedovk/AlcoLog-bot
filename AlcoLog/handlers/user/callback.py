@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from datetime import datetime, date
 
-from states.states import AddRecordSG, CalendarViewSG
-from keyboards import get_skip_confirm_keyboard, get_start_keyboard, get_month_calendar, get_day_details_keyboard
-from database.models import User, DrinkRecord
+from AlcoLog.states.states import AddRecordSG, CalendarViewSG
+from AlcoLog.keyboards import get_skip_confirm_keyboard, get_start_keyboard, get_month_calendar, get_day_details_keyboard
+from AlcoLog.database.models import User, DrinkRecord
 
 router = Router()
 
@@ -297,7 +297,7 @@ async def show_calendar_callback(callback: CallbackQuery, state: FSMContext, loc
 
 
 @router.callback_query(F.data.startswith("cal_day_"))
-async def calendar_day_callback(callback: CallbackQuery, locale: TranslatorRunner, user: User, session: AsyncSession):
+async def calendar_day_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner, user: User, session: AsyncSession):
     """Handle click on specific day in calendar"""
     await callback.answer()
 
@@ -311,6 +311,9 @@ async def calendar_day_callback(callback: CallbackQuery, locale: TranslatorRunne
 
     from datetime import timedelta
     selected_date = date(year, month, day)
+
+    # Store selected date in state for delete operation
+    await state.update_data(selected_date=selected_date.strftime("%Y-%m-%d"))
 
     # Query records for this day
     next_day = selected_date + timedelta(days=1)
@@ -453,5 +456,148 @@ async def calendar_back_to_menu_callback(callback: CallbackQuery, state: FSMCont
     menu_text = locale.get("start-menu-text")
     try:
         await callback.message.edit_text(menu_text, reply_markup=get_start_keyboard(locale))
+    except Exception:
+        pass
+
+
+# ============ DELETE HANDLERS ============
+
+@router.callback_query(F.data == "delete_day_records")
+async def delete_day_records_callback(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner, session: AsyncSession, user: User):
+    """Handle delete button on day details view"""
+    await callback.answer()
+
+    # Get the current day from state (we'll store it)
+    data = await state.get_data()
+    selected_date = data.get("selected_date")
+
+    if not selected_date:
+        # No specific date stored, show error
+        await callback.answer(locale.get("error-database"), show_alert=True)
+        return
+
+    confirm_text = locale.get("delete-confirm-prompt")
+    from AlcoLog.keyboards import get_delete_confirm_keyboard
+
+    await callback.message.edit_text(
+        confirm_text,
+        reply_markup=get_delete_confirm_keyboard(locale, selected_date)
+    )
+
+
+@router.callback_query(F.data.startswith("delete_confirm_"))
+async def delete_confirm_callback(callback: CallbackQuery, locale: TranslatorRunner, user: User, session: AsyncSession):
+    """Handle delete confirmation"""
+    await callback.answer()
+
+    # Parse date from callback data
+    date_str = callback.data.replace("delete_confirm_", "")
+    
+    try:
+        # Parse date in format YYYY-MM-DD
+        year, month, day = map(int, date_str.split("-"))
+        selected_date = date(year, month, day)
+    except (ValueError, IndexError):
+        await callback.answer(locale.get("error-date-parse"), show_alert=True)
+        return
+
+    try:
+        from datetime import timedelta
+        
+        # Query and delete all records for this day
+        next_day = selected_date + timedelta(days=1)
+        stmt = select(DrinkRecord).where(
+            and_(
+                DrinkRecord.user_id == user.id,
+                DrinkRecord.created_at >= datetime.combine(selected_date, datetime.min.time()),
+                DrinkRecord.created_at < datetime.combine(next_day, datetime.min.time())
+            )
+        )
+        
+        result = await session.execute(stmt)
+        records = result.scalars().all()
+
+        # Delete records
+        for record in records:
+            await session.delete(record)
+        
+        await session.commit()
+
+        success_text = locale.get("delete-success")
+        
+        # Return to calendar
+        today = datetime.now()
+        year, month = today.year, today.month
+        keyboard, header = await get_month_calendar(year, month, user.id, session, locale)
+
+        await callback.message.edit_text(
+            f"{success_text}\n\n{header}",
+            reply_markup=keyboard
+        )
+
+    except Exception as e:
+        error_text = locale.get("error-database")
+        await callback.message.edit_text(error_text, reply_markup=get_start_keyboard(locale))
+
+
+@router.callback_query(F.data == "cancel_delete")
+async def cancel_delete_callback(callback: CallbackQuery, locale: TranslatorRunner, user: User, session: AsyncSession):
+    """Handle cancel delete"""
+    await callback.answer()
+
+    cancelled_text = locale.get("delete-cancelled")
+    
+    # Go back to current day view (today)
+    today = datetime.now()
+    selected_date = today.date()
+
+    from datetime import timedelta
+    next_day = selected_date + timedelta(days=1)
+    
+    stmt = select(DrinkRecord).where(
+        and_(
+            DrinkRecord.user_id == user.id,
+            DrinkRecord.created_at >= datetime.combine(selected_date, datetime.min.time()),
+            DrinkRecord.created_at < datetime.combine(next_day, datetime.min.time())
+        )
+    ).order_by(DrinkRecord.created_at.desc())
+
+    result = await session.execute(stmt)
+    records = result.scalars().all()
+
+    # Format day details
+    date_str = selected_date.strftime("%d.%m.%Y")
+    day_text = f"📊 {date_str}\n\n"
+
+    if not records:
+        day_text += locale.get("day-no-records")
+    else:
+        day_text += locale.get("day-drinks-count", count=len(records)) + "\n\n"
+
+        total_amount = 0
+        total_price = 0
+
+        for i, record in enumerate(records, 1):
+            day_text += f"{i}. {record.drink_name}"
+            if record.amount:
+                day_text += f" - {record.amount} {record.amount_unit}"
+                total_amount += record.amount
+            if record.price:
+                day_text += f" ({record.price} грн)"
+                total_price += record.price
+            if record.note:
+                day_text += f" | {record.note}"
+            day_text += "\n"
+
+        if total_amount > 0:
+            day_text += "\n" + locale.get("day-total-amount", amount=total_amount)
+        if total_price > 0:
+            day_text += "\n" + locale.get("day-total-price", price=total_price)
+
+    try:
+        await callback.message.edit_text(
+            f"{cancelled_text}\n\n{day_text}",
+            reply_markup=get_day_details_keyboard(locale)
+        )
     except Exception:
         pass

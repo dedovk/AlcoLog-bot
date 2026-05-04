@@ -77,3 +77,9 @@ day-total-amount = 📈 Всего: { $amount } мл
 day-total-price = 💰 Потрачено: { $price } грн
 
 error-date-parse = ❌ Ошибка при разборе даты
+
+# Delete record translations
+delete-confirm-prompt = 🗑️ Вы уверены, что хотите удалить ВСЕ записи за этот день?
+delete-single-confirm = 🗑️ Вы уверены, что хотите удалить эту запись?
+delete-success = ✅ Записи успешно удалены!
+delete-cancelled = ❌ Удаление отменено.

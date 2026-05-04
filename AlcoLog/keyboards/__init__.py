@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import calendar
 from fluentogram import TranslatorRunner
 
-from database.models import DrinkRecord
+from AlcoLog.database.models import DrinkRecord
 
 
 def get_start_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
@@ -144,6 +144,17 @@ def get_day_details_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
                    callback_data="add_drink")
     builder.button(text=locale.get("btn-home"), callback_data="back_to_menu")
     builder.button(text=locale.get("btn-delete"),
-                   callback_data="delete_records")
+                   callback_data="delete_day_records")
     builder.adjust(1, 2)
+    return builder.as_markup()
+
+
+def get_delete_confirm_keyboard(locale: TranslatorRunner, day_param: str = "") -> InlineKeyboardMarkup:
+    """Keyboard with delete confirmation buttons"""
+    builder = InlineKeyboardBuilder()
+    builder.button(text=locale.get("btn-delete-confirm"),
+                   callback_data=f"delete_confirm_{day_param}")
+    builder.button(text=locale.get("btn-cancel"),
+                   callback_data="cancel_delete")
+    builder.adjust(2)
     return builder.as_markup()

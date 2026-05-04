@@ -77,3 +77,9 @@ day-total-amount = 📈 Total: { $amount } ml
 day-total-price = 💰 Spent: { $price } UAH
 
 error-date-parse = ❌ Error parsing date
+
+# Delete record translations
+delete-confirm-prompt = 🗑️ Are you sure you want to delete ALL records for this day?
+delete-single-confirm = 🗑️ Are you sure you want to delete this record?
+delete-success = ✅ Records deleted successfully!
+delete-cancelled = ❌ Deletion cancelled.

@@ -21,5 +21,6 @@ btn-next = ▶️ Next
 btn-back-to-menu = ◀️ Back to menu
 btn-back-to-calendar = ◀️ Back to calendar
 btn-add-record = ➕ Add record
-btn-delete = Delete records
+btn-delete = 🗑️ Delete records
+btn-delete-confirm = ✅ Yes, delete
 btn-home = 🏠 Home

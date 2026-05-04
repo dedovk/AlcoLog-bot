@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Index
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
@@ -30,6 +30,13 @@ class User(Base):
     drink_records = relationship(
         "DrinkRecord", back_populates="user", cascade="all, delete-orphan")
 
+    # Indexes for fast queries
+    __table_args__ = (
+        Index('idx_username', 'username'),
+        Index('idx_telegram_id', 'id'),
+        Index('idx_created_at', 'created_at'),
+    )
+
     def __repr__(self):
         return f"<User(id={self.id}, username={self.username}, first_name={self.first_name})>"
 
@@ -51,6 +58,13 @@ class DrinkRecord(Base):
 
     # Relationship
     user = relationship("User", back_populates="drink_records")
+
+    # Indexes for fast queries
+    __table_args__ = (
+        Index('idx_user_id', 'user_id'),
+        Index('idx_user_created', 'user_id', 'created_at'),
+        Index('idx_created_at', 'created_at'),
+    )
 
     def __repr__(self):
         return f"<DrinkRecord(id={self.id}, user_id={self.user_id}, drink_name={self.drink_name})>"

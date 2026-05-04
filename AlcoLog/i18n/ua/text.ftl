@@ -78,3 +78,8 @@ day-total-price = 💰 Витрачено: { $price } грн
 
 error-date-parse = ❌ Помилка при розборі дати
 
+# Delete record translations
+delete-confirm-prompt = 🗑️ Ви впевнені, що бажаєте видалити ВСІ записи за цей день?
+delete-single-confirm = 🗑️ Ви впевнені, що бажаєте видалити цей запис?
+delete-success = ✅ Записи видалені успішно!
+delete-cancelled = ❌ Видалення скасовано.

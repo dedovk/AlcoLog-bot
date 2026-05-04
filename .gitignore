@@ -5,6 +5,7 @@
 
 # Python
 __pycache__
+/__pycache__/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -63,3 +64,7 @@ htmlcov/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+DATABASE_ARCHITECTURE.md
+DATABASE_MIGRATION_GUIDE.md
+CODE_REVIEW_REPORT.md

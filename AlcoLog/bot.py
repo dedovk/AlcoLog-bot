@@ -1,15 +1,15 @@
 import asyncio
 
 from loguru import logger
-from utils.config import settings
+from AlcoLog.utils.config import settings
 from aiogram import Dispatcher, Bot
 from aiogram.client.session.aiohttp import AiohttpSession
-from logs import setup_logger
-from handlers import router as main_router
+from AlcoLog.logs import setup_logger
+from AlcoLog.handlers import router as main_router
 from fluentogram import TranslatorHub, FluentTranslator
 from fluent_compiler.bundle import FluentBundle
-from database.db import init_db, close_db
-from utils.middleware import TranslateMiddleware, UserMiddleware, ThrottlingMiddleware, DatabaseMiddleware
+from AlcoLog.database.db import init_db, close_db
+from AlcoLog.utils.middleware import TranslateMiddleware, UserMiddleware, ThrottlingMiddleware, DatabaseMiddleware
 
 
 t_hub = TranslatorHub(
@@ -43,7 +43,7 @@ async def main():
 
     dp.callback_query.middleware(TranslateMiddleware(t_hub))
     dp.callback_query.middleware(UserMiddleware())
-    dp.callback_query.middleware(ThrottlingMiddleware(rate_limit=0.5))
+    dp.callback_query.middleware(ThrottlingMiddleware(rate_limit=1.0))
     dp.callback_query.middleware(DatabaseMiddleware())
 
     dp.include_router(main_router)

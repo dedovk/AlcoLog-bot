@@ -9,8 +9,8 @@ from fluentogram import TranslatorHub
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from database.db import AsyncSessionLocal
-from database.models import User
+from AlcoLog.database.db import AsyncSessionLocal
+from AlcoLog.database.models import User
 
 caches = {"default": TTLCache(maxsize=10_000, ttl=0.1)}
 

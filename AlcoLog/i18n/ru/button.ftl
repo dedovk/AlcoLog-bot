@@ -21,5 +21,6 @@ btn-next = ▶️ Следующий
 btn-back-to-menu = ◀️ В меню
 btn-back-to-calendar = ◀️ Вернуться к календарю
 btn-add-record = ➕ Добавить запись
-btn-delete = Удалить записи
+btn-delete = 🗑️ Удалить записи
+btn-delete-confirm = ✅ Да, удалить
 btn-home = 🏠 Главное меню

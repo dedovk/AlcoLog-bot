@@ -5,10 +5,10 @@ from aiogram.types import Message
 from fluentogram import TranslatorRunner
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from states.states import AddRecordSG
-from keyboards import get_start_keyboard, get_skip_confirm_keyboard, get_amount_units_keyboard
-from database.db import AsyncSessionLocal
-from database.models import DrinkRecord, User
+from AlcoLog.states.states import AddRecordSG
+from AlcoLog.keyboards import get_start_keyboard, get_skip_confirm_keyboard, get_amount_units_keyboard
+from AlcoLog.database.db import AsyncSessionLocal
+from AlcoLog.database.models import DrinkRecord, User
 from sqlalchemy import select
 
 router = Router()
