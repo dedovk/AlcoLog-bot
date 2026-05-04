@@ -19,7 +19,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create users table
     op.create_table('users',
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('is_bot', sa.Boolean(), nullable=True),
@@ -43,13 +42,16 @@ def upgrade() -> None:
                     sa.Column('updated_at', sa.DateTime(),
                               server_default=sa.text('now()'), nullable=True),
                     sa.Column('blocked_at', sa.DateTime(), nullable=True),
-                    sa.PrimaryKeyConstraint('id')
+                    sa.PrimaryKeyConstraint('id'),
+                    if_not_exists=True,
                     )
-    op.create_index('idx_username', 'users', ['username'], unique=False)
-    op.create_index('idx_telegram_id', 'users', ['id'], unique=False)
-    op.create_index('idx_created_at', 'users', ['created_at'], unique=False)
+    op.create_index('idx_users_username', 'users', [
+                    'username'], unique=False, if_not_exists=True)
+    op.create_index('idx_users_telegram_id', 'users', [
+                    'id'], unique=False, if_not_exists=True)
+    op.create_index('idx_users_created_at', 'users', [
+                    'created_at'], unique=False, if_not_exists=True)  # ← перейменовано
 
-    # Create drink_records table
     op.create_table('drink_records',
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -65,22 +67,24 @@ def upgrade() -> None:
                     sa.Column('updated_at', sa.DateTime(),
                               server_default=sa.text('now()'), nullable=True),
                     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-                    sa.PrimaryKeyConstraint('id')
+                    sa.PrimaryKeyConstraint('id'),
+                    if_not_exists=True,
                     )
-    op.create_index('idx_user_id', 'drink_records', ['user_id'], unique=False)
-    op.create_index('idx_user_created', 'drink_records', [
-                    'user_id', 'created_at'], unique=False)
-    op.create_index('idx_created_at', 'drink_records', [
-                    'created_at'], unique=False, if_not_exists=True)
+    op.create_index('idx_drink_user_id', 'drink_records', [
+                    'user_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_drink_user_created', 'drink_records', [
+                    'user_id', 'created_at'], unique=False, if_not_exists=True)
+    op.create_index('idx_drink_created_at', 'drink_records', [
+                    'created_at'], unique=False, if_not_exists=True)  # ← перейменовано
 
 
 def downgrade() -> None:
-    op.drop_index('idx_created_at', table_name='drink_records')
-    op.drop_index('idx_user_created', table_name='drink_records')
-    op.drop_index('idx_user_id', table_name='drink_records')
+    op.drop_index('idx_drink_created_at', table_name='drink_records')
+    op.drop_index('idx_drink_user_created', table_name='drink_records')
+    op.drop_index('idx_drink_user_id', table_name='drink_records')
     op.drop_table('drink_records')
 
-    op.drop_index('idx_created_at', table_name='users')
-    op.drop_index('idx_telegram_id', table_name='users')
-    op.drop_index('idx_username', table_name='users')
+    op.drop_index('idx_users_created_at', table_name='users')
+    op.drop_index('idx_users_telegram_id', table_name='users')
+    op.drop_index('idx_users_username', table_name='users')
     op.drop_table('users')
