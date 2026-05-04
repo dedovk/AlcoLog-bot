@@ -22,8 +22,7 @@ def upgrade() -> None:
     op.alter_column('users', 'id',
                     existing_type=sa.Integer(),
                     type_=sa.BigInteger(),
-                    existing_nullable=False,
-                    autoincrement=True)
+                    existing_nullable=False)
 
 
 def downgrade() -> None:
