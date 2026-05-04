@@ -52,30 +52,29 @@ def upgrade() -> None:
     op.create_index('idx_users_created_at', 'users', [
                     'created_at'], unique=False, if_not_exists=True)
 
-
-op.create_table('drink_records',
-                sa.Column('id', sa.Integer(), nullable=False),
-                sa.Column('user_id', sa.Integer(), nullable=False),
-                sa.Column('drink_name', sa.String(
-                    length=255), nullable=False),
-                sa.Column('amount', sa.Float(), nullable=True),
-                sa.Column('amount_unit', sa.String(
-                    length=50), nullable=True),
-                sa.Column('price', sa.Float(), nullable=True),
-                sa.Column('note', sa.String(length=500), nullable=True),
-                sa.Column('created_at', sa.DateTime(),
-                          server_default=sa.text('now()'), nullable=True),
-                sa.Column('updated_at', sa.DateTime(),
-                          server_default=sa.text('now()'), nullable=True),
-                sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-                sa.PrimaryKeyConstraint('id')
-                )
-op.create_index('idx_drink_user_id', 'drink_records', [
-    'user_id'], unique=False, if_not_exists=True)
-op.create_index('idx_drink_user_created', 'drink_records', [
-    'user_id', 'created_at'], unique=False, if_not_exists=True)
-op.create_index('idx_drink_created_at', 'drink_records', [
-    'created_at'], unique=False, if_not_exists=True)
+    op.create_table('drink_records',
+                    sa.Column('id', sa.Integer(), nullable=False),
+                    sa.Column('user_id', sa.Integer(), nullable=False),
+                    sa.Column('drink_name', sa.String(
+                        length=255), nullable=False),
+                    sa.Column('amount', sa.Float(), nullable=True),
+                    sa.Column('amount_unit', sa.String(
+                        length=50), nullable=True),
+                    sa.Column('price', sa.Float(), nullable=True),
+                    sa.Column('note', sa.String(length=500), nullable=True),
+                    sa.Column('created_at', sa.DateTime(),
+                              server_default=sa.text('now()'), nullable=True),
+                    sa.Column('updated_at', sa.DateTime(),
+                              server_default=sa.text('now()'), nullable=True),
+                    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+                    sa.PrimaryKeyConstraint('id')
+                    )
+    op.create_index('idx_drink_user_id', 'drink_records', [
+        'user_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_drink_user_created', 'drink_records', [
+        'user_id', 'created_at'], unique=False, if_not_exists=True)
+    op.create_index('idx_drink_created_at', 'drink_records', [
+        'created_at'], unique=False, if_not_exists=True)
 
 
 def downgrade() -> None:
