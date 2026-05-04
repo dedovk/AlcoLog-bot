@@ -45,11 +45,11 @@ def upgrade() -> None:
                     sa.PrimaryKeyConstraint('id')
                     )
     op.create_index('idx_users_username', 'users', [
-                    'username'], unique=False, if_not_exists=True)
+                    'username'], unique=False)
     op.create_index('idx_users_telegram_id', 'users', [
-                    'id'], unique=False, if_not_exists=True)
+                    'id'], unique=False)
     op.create_index('idx_users_created_at', 'users', [
-                    'created_at'], unique=False, if_not_exists=True)
+                    'created_at'], unique=False)
 
     op.create_table('drink_records',
                     sa.Column('id', sa.Integer(), nullable=False),
@@ -69,11 +69,11 @@ def upgrade() -> None:
                     sa.PrimaryKeyConstraint('id')
                     )
     op.create_index('idx_drink_user_id', 'drink_records', [
-        'user_id'], unique=False, if_not_exists=True)
+        'user_id'], unique=False)
     op.create_index('idx_drink_user_created', 'drink_records', [
-        'user_id', 'created_at'], unique=False, if_not_exists=True)
+        'user_id', 'created_at'], unique=False)
     op.create_index('idx_drink_created_at', 'drink_records', [
-        'created_at'], unique=False, if_not_exists=True)
+        'created_at'], unique=False)
 
 
 def downgrade() -> None:
