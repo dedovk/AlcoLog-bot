@@ -46,7 +46,7 @@ class DrinkRecord(Base):
     __tablename__ = "drink_records"
 
     id = Column(BigInteger, primary_key=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     drink_name = Column(String(255), nullable=False)
     amount = Column(Float, nullable=True)  # in ml or units
     amount_unit = Column(String(50), nullable=True)  # ml, units, etc.
